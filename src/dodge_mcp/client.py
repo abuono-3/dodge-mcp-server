@@ -8,6 +8,38 @@ from typing import Any
 
 BASE_URL = "https://www.construction.com"
 
+# Dodge API requires "stateName" with full names like "New Jersey, USA"
+# rather than abbreviations. This maps common abbreviations.
+_STATE_ABBR_TO_NAME: dict[str, str] = {
+    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
+    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
+    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
+    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
+    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
+    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
+    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
+    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
+    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
+    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
+    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
+    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
+    "WI": "Wisconsin", "WY": "Wyoming", "DC": "District of Columbia",
+}
+
+
+def _normalize_states(states: list[str]) -> list[str]:
+    """Convert state abbreviations to 'Full Name, USA' format for Dodge API."""
+    result = []
+    for s in states:
+        s_upper = s.strip().upper()
+        if s_upper in _STATE_ABBR_TO_NAME:
+            result.append(f"{_STATE_ABBR_TO_NAME[s_upper]}, USA")
+        elif ", USA" in s:
+            result.append(s)  # Already in correct format
+        else:
+            result.append(f"{s}, USA")  # Assume full name provided
+    return result
+
 
 class DodgeAPIError(Exception):
     """Raised when the Dodge API returns an error."""
@@ -94,10 +126,10 @@ class DodgeClient:
         if active_only:
             criteria["activeProjectOnly"] = True
 
-        # Location
+        # Location — Dodge API uses "stateName" with "Full Name, USA" format
         location: dict[str, Any] = {}
         if states:
-            location["state"] = states
+            location["stateName"] = _normalize_states(states)
         if counties:
             location["county"] = counties
         if cities:
@@ -201,10 +233,10 @@ class DodgeClient:
                 ct["items"] = company_type_items
             company_criteria["companyType"] = ct
 
-        # Location
+        # Location — Dodge API uses "stateName" with "Full Name, USA" format
         location: dict[str, Any] = {}
         if states:
-            location["state"] = states
+            location["stateName"] = _normalize_states(states)
         if cities:
             location["city"] = cities
         if location:
